@@ -1,15 +1,20 @@
-# import necessary packages
+#Import packages
 from osgeo import gdal
 import os
 import json
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
-from pyperclip import copy
+import pyperclip
 import re
 from datetime import datetime
+import pandas as pd
+import geopandas as gpd
+from shapely.geometry import Point
+import pyperclip
+import re
+import matplotlib.pyplot as plt
 
-#定义函数以读取每个文件的exif信息
 def get_gps_metadata_from_image(image_path):
     """Reads the EXIF data from an image file using GDAL.
 
@@ -49,8 +54,10 @@ def get_decimal_from_dms(dms, ref):
 def get_coordinates(geotags):
     lat = get_decimal_from_dms(geotags['EXIF_GPSLatitude'], geotags['EXIF_GPSLatitudeRef'])
     lon = get_decimal_from_dms(geotags['EXIF_GPSLongitude'], geotags['EXIF_GPSLongitudeRef'])
+    alt = extract_number(geotags['EXIF_GPSAltitude'])
 
-    return (lat,lon)
+    return (lon,lat,alt)
+
 
 def extract_number(s):
     if isinstance(s, str):
@@ -59,7 +66,8 @@ def extract_number(s):
     else:
         return s
     
-def photos_to_points(folder_path):
+if __name__ == '__main__':
+    folder_path = pyperclip.paste()
     files = os.listdir(folder_path)
     data = []
     for file in files:
@@ -72,18 +80,26 @@ def photos_to_points(folder_path):
                 data.append([file,img_path,geotagging])
         except:
             continue
-    
     df = pd.DataFrame(data)
     df = pd.DataFrame(data, columns=['Name', 'Path','EXIF'])
     exif_df = pd.json_normalize(df['EXIF'])
     df = pd.concat([df, exif_df], axis=1)
-    gdf = gpd.GeoDataFrame(df, geometry=df.apply(get_coordinates, axis=1).apply(Point))
-    columns = ['Name','Path','EXIF_DateTime','EXIF_FocalLengthIn35mmFilm',
-       'EXIF_GPSImgDirection','EXIF_GPSImgDirectionRef','EXIF_Make',
-       'EXIF_PixelXDimension', 'EXIF_PixelYDimension',
-       'EXIF_SubjectArea','EXIF_XResolution', 'EXIF_YResolution',      
-       'EXIF_GPSDOP','EXIF_SubjectDistance', 'EXIF_SubjectDistanceRange','geometry']
-    gdf = gdf[columns]
+    coordinates = df.apply(get_coordinates, axis=1)
+    points = coordinates.apply(Point)
+    gdf = gpd.GeoDataFrame(df, geometry=points,crs='EPSG:4326')
+    columns_to_select = ['Name','Path','EXIF_DateTime','EXIF_FocalLengthIn35mmFilm',
+        'EXIF_GPSImgDirection','EXIF_GPSImgDirectionRef','EXIF_Make',
+        'EXIF_PixelXDimension', 'EXIF_PixelYDimension',
+        'EXIF_SubjectArea','EXIF_XResolution', 'EXIF_YResolution',      
+        'EXIF_GPSDOP','EXIF_SubjectDistance', 'EXIF_SubjectDistanceRange','geometry']
+    for col in columns_to_select:
+        # If the column does not exist in the DataFrame
+        if col not in gdf.columns:
+            # Add the column to the DataFrame with 'None' as the default value
+            gdf[col] = None
+
+    # Now select your columns
+    gdf = gdf[columns_to_select]
     gdf['EXIF_GPSImgDirection'] = gdf['EXIF_GPSImgDirection'].apply(extract_number)
     gdf['EXIF_XResolution'] = gdf['EXIF_XResolution'].apply(extract_number)
     gdf['EXIF_YResolution'] = gdf['EXIF_YResolution'].apply(extract_number)
@@ -91,8 +107,4 @@ def photos_to_points(folder_path):
     gdf['Pano'] = 1 if gdf['EXIF_Make'].str.contains('RICOH').any() else 0
     gdf['Type'] = '现状'
     gdf['Description'] = None
-    return gdf
-
-folder_path = r"W:\20221012 佤酒庄设计项目\08-现场照片\20230804 现场考察哦照片\Photos\\"
-gdf = photos_to_points(folder_path)
-gdf.to_file(os.path.join(folder_path,'photos2points.json'),driver="GeoJSON")
+    gdf.to_file(os.path.join(folder_path,f'{os.path.basename(folder_path)}.json'),driver="GeoJSON")
