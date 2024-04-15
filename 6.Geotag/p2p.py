@@ -72,7 +72,7 @@ if __name__ == '__main__':
     data = []
     for file in files:
         try:
-            if file.endswith(('.jpg', '.JPG')):  # add file types if needed.
+            if file.endswith(('.jpg', '.JPG','jpeg')):  # add file types if needed.
                 img_path = os.path.join(folder_path, file)
                 geotagging = get_gps_metadata_from_image(img_path)
                 coordinates = get_coordinates(geotagging)
