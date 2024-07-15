@@ -156,6 +156,13 @@ cython_debug/
 *.mp3
 *.mp4
 *.mkv
+#Ignore all data files
+*.csv
+*.xls
+*.xlsx
+*.json
+*.geojson
+*.html
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
