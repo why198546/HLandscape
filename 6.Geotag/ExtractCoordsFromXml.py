@@ -9,6 +9,13 @@ def new_func(file_path):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
+# Extract the SRS  from the XML
+    source_srs = None
+    for elem in root.iter():
+        if 'SRS' in elem.tag:
+            source_srs = elem.text
+            break
+
 # Extract the SRS origin coordinates from the XML
     srs_origin = None
     for elem in root.iter():
@@ -21,7 +28,7 @@ def new_func(file_path):
         x, y, z = map(float, srs_origin.split(','))
 
     # Create a transformer object for converting from EPSG:4539 to EPSG:4326
-        transformer = Transformer.from_crs("epsg:4539", "epsg:4326", always_xy=True)
+        transformer = Transformer.from_crs(source_srs, "epsg:4326", always_xy=True)
 
     # Perform the transformation
         lon, lat, alt = transformer.transform(x, y, z)
